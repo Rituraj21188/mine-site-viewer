@@ -47,7 +47,7 @@
     position: absolute; bottom: 20px; right: 14px; z-index: 1000;
     background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-    font-size: 12px; max-height: 250px; overflow-y: auto;
+    font-size: 12px; max-height: 260px; overflow-y: auto;
   }
   .legend div { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
   .legend .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
@@ -103,13 +103,15 @@ const GEOJSON_PATHS = {
 
 const map = L.map('map', { zoomControl: true }).setView(SITE_CENTER, SITE_ZOOM);
 
-map.createPane('droneRasterPane');
-map.getPane('droneRasterPane').style.zIndex = 450;
-
+// 1. Base map pane (lowest)
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors',
   maxZoom: 22
 }).addTo(map);
+
+// 2. Drone Raster Pane (Z-index 400 - above base map, below vectors)
+map.createPane('droneRasterPane');
+map.getPane('droneRasterPane').style.zIndex = 400;
 
 const orthoLayer = L.tileLayer(TILE_PATHS.ortho, {
   maxZoom: 22,
@@ -134,58 +136,68 @@ const dtmLayer = L.tileLayer(TILE_PATHS.dtm, {
   pane: 'droneRasterPane'
 });
 
+// 3. Vector Pane (Z-index 650 - explicitly guaranteed on top of orthomosaic)
+map.createPane('vectorPane');
+map.getPane('vectorPane').style.zIndex = 650;
+
+// Custom Vector Overlay Layer
 const structuresLayer = L.geoJSON(null, {
-  style: (feature) => {
+  pane: 'vectorPane',
+  
+  style: function(feature) {
     const props = feature.properties || {};
-    const layerName = (props.layer || props.name || props.Layer || "").toUpperCase();
+    // Check all possible field names created by QGIS
+    const name = String(props.layer || props.Layer || props.name || props.Name || props.LAYER || "").toUpperCase();
 
-    if (layerName.includes("LEASE_BOUNDARY")) {
-      return { color: "#ff0000", weight: 2.5, dashArray: "6, 6", fillOpacity: 0 };
+    if (name.includes("LEASE_BOUNDARY") || name.includes("LEASE")) {
+      return { pane: 'vectorPane', color: "#ff0000", weight: 3, dashArray: "6, 6", fillOpacity: 0 };
     }
-    if (layerName.includes("SAFETY_ZONE") || layerName.includes("7_5_M")) {
-      return { color: "#00ff00", weight: 2, dashArray: "4, 4", fillOpacity: 0 };
+    if (name.includes("SAFETY_ZONE") || name.includes("7_5_M") || name.includes("SAFETY")) {
+      return { pane: 'vectorPane', color: "#00ff00", weight: 2.5, dashArray: "4, 4", fillOpacity: 0 };
     }
-    if (layerName.includes("100M BUFFER") || layerName.includes("100BUFFER")) {
-      return { color: "#ff3333", weight: 1.5, dashArray: "8, 6", fillOpacity: 0 };
+    if (name.includes("100M") || name.includes("BUFFER")) {
+      return { pane: 'vectorPane', color: "#ff3333", weight: 1.5, dashArray: "8, 6", fillOpacity: 0 };
     }
-    if (layerName.includes("ROAD")) {
-      return { color: "#33ccff", weight: 3.5, opacity: 0.95 };
+    if (name.includes("ROAD")) {
+      return { pane: 'vectorPane', color: "#33ccff", weight: 4, opacity: 0.95 };
     }
-    if (layerName.includes("BLOCK - A") || layerName.includes("BLOCK_A")) {
-      return { color: "#8b7355", fillColor: "#a89078", weight: 1.5, fillOpacity: 0.5 };
+    if (name.includes("BLOCK - A") || name.includes("BLOCK_A") || name.includes("BLOCK A")) {
+      return { pane: 'vectorPane', color: "#8b7355", fillColor: "#a89078", weight: 1.5, fillOpacity: 0.5 };
     }
-    if (layerName.includes("BLOCK - B") || layerName.includes("BLOCK_B")) {
-      return { color: "#c71585", fillColor: "#d87093", weight: 1.5, fillOpacity: 0.55 };
+    if (name.includes("BLOCK - B") || name.includes("BLOCK_B") || name.includes("BLOCK B")) {
+      return { pane: 'vectorPane', color: "#c71585", fillColor: "#d87093", weight: 1.5, fillOpacity: 0.55 };
     }
-    if (layerName.includes("INFRASTRUCTURE")) {
-      return { color: "#2e8b57", fillColor: "#3cb371", weight: 1.5, fillOpacity: 0.65 };
+    if (name.includes("INFRASTRUCTURE")) {
+      return { pane: 'vectorPane', color: "#2e8b57", fillColor: "#3cb371", weight: 1.5, fillOpacity: 0.7 };
     }
-    if (layerName.includes("AFFORESTATION") || layerName.includes("RECLAIMED")) {
-      return { color: "#228b22", fillColor: "#32cd32", weight: 1.5, fillOpacity: 0.4 };
+    if (name.includes("AFFORESTATION") || name.includes("RECLAIMED")) {
+      return { pane: 'vectorPane', color: "#228b22", fillColor: "#32cd32", weight: 1.5, fillOpacity: 0.45 };
     }
 
-    return { color: "#3fa7d6", weight: 2, fillOpacity: 0.25 };
+    // Default style for any unmatched polygon/line
+    return { pane: 'vectorPane', color: "#ffff00", weight: 2.5, fillOpacity: 0.3 };
   },
 
-  pointToLayer: (feature, latlng) => {
+  pointToLayer: function(feature, latlng) {
     return L.circleMarker(latlng, {
-      radius: 6,
+      pane: 'vectorPane',
+      radius: 7,
       fillColor: "#ffd700",
       color: "#000000",
-      weight: 1.5,
+      weight: 2,
       fillOpacity: 1
     });
   },
 
-  onEachFeature: (feature, layer) => {
+  onEachFeature: function(feature, layer) {
     const props = feature.properties || {};
-    const title = props.layer || props.name || props.Layer || "Site Feature";
+    const title = props.layer || props.Layer || props.name || props.Name || "Site Feature";
     
-    layer.bindTooltip(title, { permanent: false, direction: "top", className: "label-tag" });
+    layer.bindTooltip(String(title), { permanent: false, direction: "top", className: "label-tag" });
     
     let popupContent = `<b>${title}</b>`;
     const details = Object.entries(props)
-      .filter(([k]) => !['layer', 'Layer'].includes(k))
+      .filter(([k]) => !['layer', 'Layer', 'LAYER'].includes(k))
       .map(([k, v]) => `<div><small>${k}: ${v}</small></div>`)
       .join('');
     if (details) popupContent += `<hr style="margin:4px 0; border:0; border-top:1px solid #444;">${details}`;
@@ -194,16 +206,23 @@ const structuresLayer = L.geoJSON(null, {
   }
 }).addTo(map);
 
+// Fetch the GeoJSON file
 fetch(GEOJSON_PATHS.structures)
-  .then(r => {
-    if (!r.ok) throw new Error("Could not find " + GEOJSON_PATHS.structures + " (Status: " + r.status + ")");
-    return r.json();
+  .then(response => {
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} - File not found at ${GEOJSON_PATHS.structures}`);
+    }
+    return response.json();
   })
-  .then(data => {
-    structuresLayer.addData(data);
+  .then(geojsonData => {
+    structuresLayer.addData(geojsonData);
+    console.log("Vector structures loaded successfully.");
   })
-  .catch(err => console.warn("Structures GeoJSON loading notice:", err));
+  .catch(err => {
+    console.error("Failed to load vector layer:", err);
+  });
 
+// Layer Switcher Controls
 const baseLayers = {
   "OpenStreetMap": osm
 };
@@ -218,6 +237,7 @@ const overlays = {
 L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
 L.control.scale({ imperial: false }).addTo(map);
 
+// Opacity Controls
 const opacityPanel = document.getElementById('opacityPanel');
 const opacityLabel = document.getElementById('opacityLabel');
 const opacitySlider = document.getElementById('opacitySlider');
