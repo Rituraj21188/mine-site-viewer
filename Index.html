@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mines Site Map Viewer — Ortho / DSM / DTM</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root {
+    --panel-bg: #1b1f24;
+    --panel-border: #2c333b;
+    --text: #e8ecef;
+    --muted: #8b95a1;
+    --accent: #3fa7d6;
+  }
+  html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); }
+  #map { position: absolute; inset: 0; background: #11151a; }
+
+  .app-title {
+    position: absolute; top: 14px; left: 14px; z-index: 1000;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    letter-spacing: 0.02em; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+  }
+  .app-title span { color: var(--muted); font-weight: 400; font-size: 12px; display: block; }
+
+  .leaflet-control-layers {
+    background: var(--panel-bg) !important;
+    border: 1px solid var(--panel-border) !important;
+    color: var(--text) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-control-layers-separator { border-top: 1px solid var(--panel-border) !important; }
+  .leaflet-control-layers label { font-size: 13px; }
+
+  .opacity-panel {
+    position: absolute; bottom: 20px; left: 14px; z-index: 1000;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    font-size: 12px; width: 190px;
+  }
+  .opacity-panel label { display: block; color: var(--muted); margin-bottom: 4px; }
+  .opacity-panel input[type=range] { width: 100%; accent-color: var(--accent); }
+
+  .legend {
+    position: absolute; bottom: 20px; right: 14px; z-index: 1000;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
+    font-size: 12px; max-height: 250px; overflow-y: auto;
+  }
+  .legend div { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  .legend .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .legend .swatch.point { border-radius: 50%; border: 1px solid #000; }
+  .legend .swatch.line { height: 3px; }
+
+  .label-tag {
+    background: rgba(20, 24, 28, 0.85); color: #fff; padding: 1px 6px;
+    border-radius: 4px; font-size: 11px; border: 1px solid rgba(255,255,255,0.15);
+    white-space: nowrap;
+  }
+  .leaflet-tooltip.label-tag::before { display: none; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="app-title">
+  Mines Site Map Viewer
+  <span>Orthomosaic · DSM · DTM · Structures</span>
+</div>
+
+<div class="opacity-panel" id="opacityPanel">
+  <label id="opacityLabel">Orthomosaic opacity</label>
+  <input type="range" id="opacitySlider" min="0" max="1" step="0.05" value="1">
+</div>
+
+<div class="legend">
+  <div><span class="swatch point" style="background:#ffd700;"></span> Boundary Pillar</div>
+  <div><span class="swatch line" style="background:#ff0000; border-top: 2px dashed #ff0000;"></span> Lease Boundary</div>
+  <div><span class="swatch line" style="background:#00ff00; border-top: 2px dashed #00ff00;"></span> Safety Zone (7.5m)</div>
+  <div><span class="swatch line" style="background:#33ccff;"></span> Road</div>
+  <div><span class="swatch" style="background:#a89078;"></span> Block A</div>
+  <div><span class="swatch" style="background:#d87093;"></span> Block B</div>
+  <div><span class="swatch" style="background:#3cb371;"></span> Infrastructure</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const SITE_CENTER = [25.192475, 91.619639];
+const SITE_ZOOM = 17;
+
+const TILE_PATHS = {
+  ortho: "./Tiles.tif/{z}/{x}/{y}.png",
+  dsm:   "./Tiles_DSM.tif/{z}/{x}/{y}.png",
+  dtm:   "./Tiles_DTM.tif/{z}/{x}/{y}.png"
+};
+
+const GEOJSON_PATHS = {
+  structures: "./data/structures-sample.geojson"
+};
+
+const map = L.map('map', { zoomControl: true }).setView(SITE_CENTER, SITE_ZOOM);
+
+map.createPane('droneRasterPane');
+map.getPane('droneRasterPane').style.zIndex = 450;
+
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 22
+}).addTo(map);
+
+const orthoLayer = L.tileLayer(TILE_PATHS.ortho, {
+  maxZoom: 22,
+  maxNativeZoom: 20,
+  tms: true,
+  pane: 'droneRasterPane'
+}).addTo(map);
+
+const dsmLayer = L.tileLayer(TILE_PATHS.dsm, {
+  maxZoom: 22,
+  maxNativeZoom: 20,
+  tms: true,
+  opacity: 0.85,
+  pane: 'droneRasterPane'
+});
+
+const dtmLayer = L.tileLayer(TILE_PATHS.dtm, {
+  maxZoom: 22,
+  maxNativeZoom: 20,
+  tms: true,
+  opacity: 0.85,
+  pane: 'droneRasterPane'
+});
+
+const structuresLayer = L.geoJSON(null, {
+  style: (feature) => {
+    const props = feature.properties || {};
+    const layerName = (props.layer || props.name || props.Layer || "").toUpperCase();
+
+    if (layerName.includes("LEASE_BOUNDARY")) {
+      return { color: "#ff0000", weight: 2.5, dashArray: "6, 6", fillOpacity: 0 };
+    }
+    if (layerName.includes("SAFETY_ZONE") || layerName.includes("7_5_M")) {
+      return { color: "#00ff00", weight: 2, dashArray: "4, 4", fillOpacity: 0 };
+    }
+    if (layerName.includes("100M BUFFER") || layerName.includes("100BUFFER")) {
+      return { color: "#ff3333", weight: 1.5, dashArray: "8, 6", fillOpacity: 0 };
+    }
+    if (layerName.includes("ROAD")) {
+      return { color: "#33ccff", weight: 3.5, opacity: 0.95 };
+    }
+    if (layerName.includes("BLOCK - A") || layerName.includes("BLOCK_A")) {
+      return { color: "#8b7355", fillColor: "#a89078", weight: 1.5, fillOpacity: 0.5 };
+    }
+    if (layerName.includes("BLOCK - B") || layerName.includes("BLOCK_B")) {
+      return { color: "#c71585", fillColor: "#d87093", weight: 1.5, fillOpacity: 0.55 };
+    }
+    if (layerName.includes("INFRASTRUCTURE")) {
+      return { color: "#2e8b57", fillColor: "#3cb371", weight: 1.5, fillOpacity: 0.65 };
+    }
+    if (layerName.includes("AFFORESTATION") || layerName.includes("RECLAIMED")) {
+      return { color: "#228b22", fillColor: "#32cd32", weight: 1.5, fillOpacity: 0.4 };
+    }
+
+    return { color: "#3fa7d6", weight: 2, fillOpacity: 0.25 };
+  },
+
+  pointToLayer: (feature, latlng) => {
+    return L.circleMarker(latlng, {
+      radius: 6,
+      fillColor: "#ffd700",
+      color: "#000000",
+      weight: 1.5,
+      fillOpacity: 1
+    });
+  },
+
+  onEachFeature: (feature, layer) => {
+    const props = feature.properties || {};
+    const title = props.layer || props.name || props.Layer || "Site Feature";
+    
+    layer.bindTooltip(title, { permanent: false, direction: "top", className: "label-tag" });
+    
+    let popupContent = `<b>${title}</b>`;
+    const details = Object.entries(props)
+      .filter(([k]) => !['layer', 'Layer'].includes(k))
+      .map(([k, v]) => `<div><small>${k}: ${v}</small></div>`)
+      .join('');
+    if (details) popupContent += `<hr style="margin:4px 0; border:0; border-top:1px solid #444;">${details}`;
+    
+    layer.bindPopup(popupContent);
+  }
+}).addTo(map);
+
+fetch(GEOJSON_PATHS.structures)
+  .then(r => {
+    if (!r.ok) throw new Error("Could not find " + GEOJSON_PATHS.structures + " (Status: " + r.status + ")");
+    return r.json();
+  })
+  .then(data => {
+    structuresLayer.addData(data);
+  })
+  .catch(err => console.warn("Structures GeoJSON loading notice:", err));
+
+const baseLayers = {
+  "OpenStreetMap": osm
+};
+
+const overlays = {
+  "Orthomosaic": orthoLayer,
+  "DSM (surface model)": dsmLayer,
+  "DTM (terrain model)": dtmLayer,
+  "Structures & Boundaries": structuresLayer
+};
+
+L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+L.control.scale({ imperial: false }).addTo(map);
+
+const opacityPanel = document.getElementById('opacityPanel');
+const opacityLabel = document.getElementById('opacityLabel');
+const opacitySlider = document.getElementById('opacitySlider');
+
+let activeRasterLayer = orthoLayer;
+
+function updateOpacityControl() {
+  if (map.hasLayer(orthoLayer)) {
+    activeRasterLayer = orthoLayer;
+    opacityPanel.style.display = 'block';
+    opacityLabel.textContent = 'Orthomosaic opacity';
+  } else if (map.hasLayer(dsmLayer)) {
+    activeRasterLayer = dsmLayer;
+    opacityPanel.style.display = 'block';
+    opacityLabel.textContent = 'DSM opacity';
+  } else if (map.hasLayer(dtmLayer)) {
+    activeRasterLayer = dtmLayer;
+    opacityPanel.style.display = 'block';
+    opacityLabel.textContent = 'DTM opacity';
+  } else {
+    opacityPanel.style.display = 'none';
+    return;
+  }
+  opacitySlider.value = activeRasterLayer.options.opacity ?? 1;
+}
+
+opacitySlider.oninput = () => {
+  if (activeRasterLayer) {
+    activeRasterLayer.setOpacity(parseFloat(opacitySlider.value));
+  }
+};
+
+map.on('overlayadd', updateOpacityControl);
+map.on('overlayremove', updateOpacityControl);
+</script>
+</body>
+</html>
