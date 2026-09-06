@@ -91,6 +91,12 @@
 const SITE_CENTER = [25.192475, 91.619639];
 const SITE_ZOOM = 17;
 
+// Tight bounds around the mine site boundary frame
+const SITE_BOUNDS = L.latLngBounds(
+  [25.1830, 91.6090], // Southwest coordinate
+  [25.2020, 91.6300]  // Northeast coordinate
+);
+
 const TILE_PATHS = {
   ortho: "./Tiles.tif/{z}/{x}/{y}.png",
   dsm:   "./Tiles_DSM.tif/{z}/{x}/{y}.png",
@@ -101,7 +107,14 @@ const GEOJSON_PATHS = {
   structures: "data/structures-structures.geojson"
 };
 
-const map = L.map('map', { zoomControl: true }).setView(SITE_CENTER, SITE_ZOOM);
+// Locked minZoom & maxBounds to prevent zooming out or panning past the site
+const map = L.map('map', { 
+  zoomControl: true,
+  minZoom: 16,
+  maxZoom: 22,
+  maxBounds: SITE_BOUNDS,
+  maxBoundsViscosity: 1.0
+}).setView(SITE_CENTER, SITE_ZOOM);
 
 // 1. Base map pane (lowest)
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -111,12 +124,14 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // 2. Drone Raster Pane (Z-index 400 - above base map, below vectors)
 map.createPane('droneRasterPane');
-map.getPane('droneRasterPane').style.zIndex = 400;
+const droneRasterPane = map.getPane('droneRasterPane');
+droneRasterPane.style.zIndex = 400;
 
 const orthoLayer = L.tileLayer(TILE_PATHS.ortho, {
   maxZoom: 22,
   maxNativeZoom: 20,
   tms: true,
+  bounds: SITE_BOUNDS,
   pane: 'droneRasterPane'
 }).addTo(map);
 
@@ -125,6 +140,7 @@ const dsmLayer = L.tileLayer(TILE_PATHS.dsm, {
   maxNativeZoom: 20,
   tms: true,
   opacity: 0.85,
+  bounds: SITE_BOUNDS,
   pane: 'droneRasterPane'
 });
 
@@ -133,6 +149,7 @@ const dtmLayer = L.tileLayer(TILE_PATHS.dtm, {
   maxNativeZoom: 20,
   tms: true,
   opacity: 0.85,
+  bounds: SITE_BOUNDS,
   pane: 'droneRasterPane'
 });
 
@@ -146,7 +163,6 @@ const structuresLayer = L.geoJSON(null, {
   
   style: function(feature) {
     const props = feature.properties || {};
-    // Check all possible field names created by QGIS
     const name = String(props.layer || props.Layer || props.name || props.Name || props.LAYER || "").toUpperCase();
 
     if (name.includes("LEASE_BOUNDARY") || name.includes("LEASE")) {
@@ -174,7 +190,6 @@ const structuresLayer = L.geoJSON(null, {
       return { pane: 'vectorPane', color: "#228b22", fillColor: "#32cd32", weight: 1.5, fillOpacity: 0.45 };
     }
 
-    // Default style for any unmatched polygon/line
     return { pane: 'vectorPane', color: "#ffff00", weight: 2.5, fillOpacity: 0.3 };
   },
 
@@ -237,28 +252,34 @@ const overlays = {
 L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
 L.control.scale({ imperial: false }).addTo(map);
 
-// Opacity Controls
+// Opacity & Blend Mode Controls
 const opacityPanel = document.getElementById('opacityPanel');
 const opacityLabel = document.getElementById('opacityLabel');
 const opacitySlider = document.getElementById('opacitySlider');
 
 let activeRasterLayer = orthoLayer;
 
-function updateOpacityControl() {
+function updateRasterDisplay() {
   if (map.hasLayer(orthoLayer)) {
     activeRasterLayer = orthoLayer;
     opacityPanel.style.display = 'block';
     opacityLabel.textContent = 'Orthomosaic opacity';
+    droneRasterPane.style.mixBlendMode = 'normal';
   } else if (map.hasLayer(dsmLayer)) {
     activeRasterLayer = dsmLayer;
     opacityPanel.style.display = 'block';
     opacityLabel.textContent = 'DSM opacity';
+    // Drops pure black collar pixels (0,0,0) out as transparent
+    droneRasterPane.style.mixBlendMode = 'screen';
   } else if (map.hasLayer(dtmLayer)) {
     activeRasterLayer = dtmLayer;
     opacityPanel.style.display = 'block';
     opacityLabel.textContent = 'DTM opacity';
+    // Drops pure black collar pixels (0,0,0) out as transparent
+    droneRasterPane.style.mixBlendMode = 'screen';
   } else {
     opacityPanel.style.display = 'none';
+    droneRasterPane.style.mixBlendMode = 'normal';
     return;
   }
   opacitySlider.value = activeRasterLayer.options.opacity ?? 1;
@@ -270,8 +291,9 @@ opacitySlider.oninput = () => {
   }
 };
 
-map.on('overlayadd', updateOpacityControl);
-map.on('overlayremove', updateOpacityControl);
+map.on('overlayadd', updateRasterDisplay);
+map.on('overlayremove', updateRasterDisplay);
+updateRasterDisplay();
 </script>
 </body>
 </html>
