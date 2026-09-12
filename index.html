@@ -1,299 +1,535 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mines Site Map Viewer — Ortho / DSM / DTM</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<style>
-  :root {
-    --panel-bg: #1b1f24;
-    --panel-border: #2c333b;
-    --text: #e8ecef;
-    --muted: #8b95a1;
-    --accent: #3fa7d6;
-  }
-  html, body { margin: 0; height: 100%; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--text); }
-  #map { position: absolute; inset: 0; background: #11151a; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mine Site Sentinel | Drone Analytics & IBM Rule 34A Compliance</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --panel-bg: rgba(22, 27, 34, 0.95);
+      --border: #30363d;
+      --accent: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.12);
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
 
-  .app-title {
-    position: absolute; top: 14px; left: 14px; z-index: 1000;
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 600;
-    letter-spacing: 0.02em; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-  }
-  .app-title span { color: var(--muted); font-weight: 400; font-size: 12px; display: block; }
+    /* Navigation */
+    header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; position: sticky; top: 0; background: rgba(13,17,23,0.92); backdrop-filter: blur(10px); z-index: 1000; }
+    .nav-inner { max-width: 1240px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-weight: 700; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 8px; font-size: 1.1rem; }
+    .brand span { color: var(--accent); }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; }
+    .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+    .nav-links a:hover { color: #fff; }
+    .btn-cta { background: var(--accent); color: #000; padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; text-decoration: none; font-size: 0.85rem; transition: opacity 0.2s; }
+    .btn-cta:hover { opacity: 0.9; }
 
-  .leaflet-control-layers {
-    background: var(--panel-bg) !important;
-    border: 1px solid var(--panel-border) !important;
-    color: var(--text) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.4) !important;
-  }
-  .leaflet-control-layers-separator { border-top: 1px solid var(--panel-border) !important; }
-  .leaflet-control-layers label { font-size: 13px; }
+    /* Hero Section */
+    .hero { padding: 5rem 2rem 3rem; max-width: 1150px; margin: 0 auto; text-align: center; }
+    .badge { display: inline-block; padding: 5px 14px; background: var(--accent-glow); border: 1px solid var(--accent); color: var(--accent); border-radius: 20px; font-size: 0.8rem; font-family: var(--mono); margin-bottom: 1.5rem; }
+    .hero h1 { font-size: 2.8rem; line-height: 1.25; margin-bottom: 1.2rem; font-weight: 700; }
+    .hero p { color: var(--text-muted); font-size: 1.1rem; max-width: 820px; margin: 0 auto 2rem; }
+    .hero-actions { display: flex; justify-content: center; gap: 1rem; margin-bottom: 3.5rem; flex-wrap: wrap; }
+    .btn-secondary { border: 1px solid var(--border); color: #fff; padding: 0.55rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 0.85rem; }
+    .btn-secondary:hover { background: var(--card-bg); }
 
-  .opacity-panel {
-    position: absolute; bottom: 20px; left: 14px; z-index: 1000;
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-    font-size: 12px; width: 190px;
-  }
-  .opacity-panel label { display: block; color: var(--muted); margin-bottom: 4px; }
-  .opacity-panel input[type=range] { width: 100%; accent-color: var(--accent); }
+    /* Metric Grid */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; text-align: left; }
+    .metric-card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.25rem; border-radius: 8px; }
+    .metric-card span { font-size: 0.75rem; color: var(--text-muted); font-family: var(--mono); letter-spacing: 0.05em; }
+    .metric-card strong { display: block; font-size: 1.35rem; color: var(--accent); margin-top: 4px; font-family: var(--mono); }
 
-  .legend {
-    position: absolute; bottom: 20px; right: 14px; z-index: 1000;
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px; padding: 10px 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-    font-size: 12px; max-height: 260px; overflow-y: auto;
-  }
-  .legend div { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-  .legend .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
-  .legend .swatch.point { border-radius: 50%; border: 1px solid #000; }
-  .legend .swatch.line { height: 3px; }
+    /* Standard Section Structure */
+    .section { padding: 4.5rem 2rem; max-width: 1240px; margin: 0 auto; }
+    .section-title { font-size: 2rem; margin-bottom: 0.75rem; font-weight: 600; }
+    .section-desc { color: var(--text-muted); margin-bottom: 2.5rem; max-width: 800px; }
 
-  .label-tag {
-    background: rgba(20, 24, 28, 0.85); color: #fff; padding: 1px 6px;
-    border-radius: 4px; font-size: 11px; border: 1px solid rgba(255,255,255,0.15);
-    white-space: nowrap;
-  }
-  .leaflet-tooltip.label-tag::before { display: none; }
-</style>
+    /* Grid Layouts */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.5rem; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; }
+    .card h3 { font-size: 1.1rem; margin-bottom: 0.6rem; color: #fff; }
+    .card p { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
+    .card-code { font-family: var(--mono); font-size: 0.8rem; color: var(--accent); margin-top: 1rem; }
+
+    /* Workflow Pipeline Steps */
+    .step-card { background: var(--card-bg); border: 1px solid var(--border); padding: 1.75rem; border-radius: 8px; }
+    .step-num { font-family: var(--mono); color: var(--accent); font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+    /* Embedded WebGIS Container */
+    .viewer-frame {
+      position: relative;
+      width: 100%;
+      height: 640px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #11151a;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+    #map { position: absolute; inset: 0; z-index: 1; }
+
+    .app-title {
+      position: absolute; top: 14px; left: 14px; z-index: 500;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+      letter-spacing: 0.02em; backdrop-filter: blur(6px);
+    }
+    .app-title span { color: var(--text-muted); font-weight: 400; font-size: 11px; display: block; }
+
+    .opacity-panel {
+      position: absolute; bottom: 20px; left: 14px; z-index: 500;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; backdrop-filter: blur(6px);
+      font-size: 12px; width: 190px;
+    }
+    .opacity-panel label { display: block; color: var(--text-muted); margin-bottom: 4px; font-family: var(--mono); }
+    .opacity-panel input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+    .legend {
+      position: absolute; bottom: 20px; right: 14px; z-index: 500;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 14px; backdrop-filter: blur(6px);
+      font-size: 12px; max-height: 260px; overflow-y: auto;
+    }
+    .legend div { display: flex; align-items: center; gap: 8px; margin: 5px 0; color: var(--text); }
+    .legend .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+    .legend .swatch.point { border-radius: 50%; border: 1px solid #000; }
+    .legend .swatch.line { height: 3px; }
+
+    .leaflet-control-layers {
+      background: var(--panel-bg) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text) !important;
+      border-radius: 8px !important;
+      font-family: var(--font) !important;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4) !important;
+      backdrop-filter: blur(6px);
+    }
+    .leaflet-control-layers-separator { border-top: 1px solid var(--border) !important; }
+    .leaflet-control-layers label { font-size: 12px; }
+
+    .label-tag {
+      background: rgba(20, 24, 28, 0.9); color: #fff; padding: 2px 6px;
+      border-radius: 4px; font-size: 11px; border: 1px solid rgba(255,255,255,0.15);
+      font-family: var(--mono); white-space: nowrap;
+    }
+    .leaflet-tooltip.label-tag::before { display: none; }
+
+    /* Contact Card */
+    .contact-card { background: linear-gradient(180deg, var(--card-bg) 0%, #0d1117 100%); border: 1px solid var(--border); border-radius: 12px; padding: 3.5rem 2rem; text-align: center; }
+    .contact-card h2 { margin-bottom: 1rem; font-size: 2rem; }
+    .contact-links { display: flex; justify-content: center; gap: 2.5rem; margin-top: 2rem; flex-wrap: wrap; }
+    .contact-links a { color: var(--accent); text-decoration: none; font-weight: 500; font-size: 0.95rem; }
+
+    footer { border-top: 1px solid var(--border); padding: 2rem; text-align: center; font-size: 0.85rem; color: var(--text-muted); }
+  </style>
 </head>
 <body>
 
-<div id="map"></div>
+  <header>
+    <div class="nav-inner">
+      <a href="#" class="brand"><span>▲</span> MINE SITE VIEWER</a>
+      <nav class="nav-links">
+        <a href="#viewer">Live Spatial Deck</a>
+        <a href="#advantages">Advantages</a>
+        <a href="#workflow">Process</a>
+        <a href="#compliance">Rule 34A Deliverables</a>
+        <a href="#contact" class="btn-cta">Request Survey</a>
+      </nav>
+    </div>
+  </header>
 
-<div class="app-title">
-  Mines Site Map Viewer
-  <span>Orthomosaic · DSM · DTM · Structures</span>
-</div>
+  <section class="hero">
+    <div class="badge">IBM Rule 34A MCDR (2017) Compliant · WebGIS Mining Intelligence[cite: 1]</div>
+    <h1>Every pit, dump, and bench mapped to sub-5 cm precision[cite: 1].</h1>
+    <p>Mine Site Viewer transforms DGCA-compliant aerial survey data into high-resolution orthomosaics, 3D elevation models (DEM/DSM/DTM), and volumetric analytics—engineered for opencast mining operations and Indian Bureau of Mines (IBM) submission standards[cite: 1].</p>
+    <div class="hero-actions">
+      <a href="#viewer" class="btn-cta" style="padding: 0.7rem 1.5rem;">Explore Live Mine Deck</a>
+      <a href="#contact" class="btn-secondary">Commission a Mine Survey</a>
+    </div>
 
-<div class="opacity-panel" id="opacityPanel">
-  <label id="opacityLabel">Orthomosaic opacity</label>
-  <input type="range" id="opacitySlider" min="0" max="1" step="0.05" value="1">
-</div>
+    <div class="metric-grid">
+      <div class="metric-card">
+        <span>IMAGE RESOLUTION (GSD)</span>
+        <strong>&lt; 5.0 cm / px</strong>
+      </div>
+      <div class="metric-card">
+        <span>ELEVATION MODEL (DEM)</span>
+        <strong>&le; 15.0 cm / px</strong>
+      </div>
+      <div class="metric-card">
+        <span>SURVEY EXTENT</span>
+        <strong>Lease + 100m Buffer</strong>
+      </div>
+      <div class="metric-card">
+        <span>COORDINATE SYSTEM</span>
+        <strong>WGS 84 / UTM Grid</strong>
+      </div>
+    </div>
+  </section>
 
-<div class="legend">
-  <div><span class="swatch point" style="background:#ffd700;"></span> Boundary Pillar</div>
-  <div><span class="swatch line" style="background:#ff0000; border-top: 2px dashed #ff0000;"></span> Lease Boundary</div>
-  <div><span class="swatch line" style="background:#00ff00; border-top: 2px dashed #00ff00;"></span> Safety Zone (7.5m)</div>
-  <div><span class="swatch line" style="background:#33ccff;"></span> Road</div>
-  <div><span class="swatch" style="background:#a89078;"></span> Block A</div>
-  <div><span class="swatch" style="background:#d87093;"></span> Block B</div>
-  <div><span class="swatch" style="background:#3cb371;"></span> Infrastructure</div>
-</div>
+  <section class="section" id="viewer">
+    <h2 class="section-title">Live Spatial Deck</h2>
+    <p class="section-desc">Interactive WebGIS viewer displaying actual drone orthomosaics, digital surface models, and structural cadastral boundaries[cite: 1].</p>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-const SITE_CENTER = [25.192475, 91.619639];
-const SITE_ZOOM = 17;
+    <div class="viewer-frame">
+      <div id="map"></div>
 
-// Tight bounds around the mine site boundary frame
-const SITE_BOUNDS = L.latLngBounds(
-  [25.1830, 91.6090], // Southwest coordinate
-  [25.2020, 91.6300]  // Northeast coordinate
-);
+      <div class="app-title">
+        Mines Site Map Viewer
+        <span>Orthomosaic · DSM · DTM · Structures[cite: 1]</span>
+      </div>
 
-const TILE_PATHS = {
-  ortho: "./Tiles.tif/{z}/{x}/{y}.png",
-  dsm:   "./Tiles_DSM.tif/{z}/{x}/{y}.png",
-  dtm:   "./Tiles_DTM.tif/{z}/{x}/{y}.png"
-};
+      <div class="opacity-panel" id="opacityPanel">
+        <label id="opacityLabel">Orthomosaic opacity</label>
+        <input type="range" id="opacitySlider" min="0" max="1" step="0.05" value="1">
+      </div>
 
-const GEOJSON_PATHS = {
-  structures: "data/structures-structures.geojson"
-};
+      <div class="legend">
+        <div><span class="swatch point" style="background:#ffd700;"></span> Boundary Pillar[cite: 1]</div>
+        <div><span class="swatch line" style="background:#ff0000; border-top: 2px dashed #ff0000;"></span> Lease Boundary[cite: 1]</div>
+        <div><span class="swatch line" style="background:#00ff00; border-top: 2px dashed #00ff00;"></span> Safety Zone (7.5m)</div>
+        <div><span class="swatch line" style="background:#33ccff;"></span> Road</div>
+        <div><span class="swatch" style="background:#a89078;"></span> Block A</div>
+        <div><span class="swatch" style="background:#d87093;"></span> Block B</div>
+        <div><span class="swatch" style="background:#3cb371;"></span> Infrastructure</div>
+      </div>
+    </div>
+  </section>
 
-// Locked minZoom & maxBounds to prevent zooming out or panning past the site
-const map = L.map('map', { 
-  zoomControl: true,
-  minZoom: 16,
-  maxZoom: 22,
-  maxBounds: SITE_BOUNDS,
-  maxBoundsViscosity: 1.0
-}).setView(SITE_CENTER, SITE_ZOOM);
+  <section class="section" id="advantages">
+    <h2 class="section-title">Advantages of Drone Survey in Mining</h2>
+    <p class="section-desc">High-precision aerial photogrammetry delivers rapid site capture, centimeter-level volumetric accuracy, and eliminates hazardous manual ground surveys[cite: 1].</p>
+    <div class="card-grid">
+      <div class="card">
+        <div>
+          <h3>Fast, Comprehensive Coverage</h3>
+          <p>Survey entire mining leases and quarries rapidly, providing comprehensive, authentic data on operational site conditions without interrupting active pit traffic[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Centimeter-Level Volumetrics</h3>
+          <p>Produces dense 3D point clouds and Digital Surface Models (DSM) for accurate cut-and-fill volumetrics and excavation monitoring[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Irregular Stockpile Modeling</h3>
+          <p>Stockpiles exhibiting complex geometries, steep angles, or irregular craters are surveyed with exact precision compared to traditional methods[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Zero Ground Personnel Hazard</h3>
+          <p>Executes entirely from the air, removing field surveyors from dangerous pit benches, highwalls, active dump slopes, and heavy equipment routes[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Automated Multi-Epoch Tracking</h3>
+          <p>Historical survey datasets overlay seamlessly to automatically track and highlight excavation advancement, dump growth, and backfilling over time[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Perimeter & Buffer Oversight</h3>
+          <p>Enables systematic lease boundary demarcation and captures the mandatory 100-meter buffer zone outside the boundary to identify unauthorized excavation[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Systematic Mine Closure Planning</h3>
+          <p>Creates a multi-year digital spatial archive to monitor environmental rehabilitation, greenbelt afforestation, and scientific mine closure planning[cite: 1].</p>
+        </div>
+      </div>
+      <div class="card">
+        <div>
+          <h3>Digital Audit Database</h3>
+          <p>Establishes an easily retrievable digital repository of raw and processed spatial data preserved for mandatory statutory verification periods[cite: 1].</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-// 1. Base map pane (lowest)
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors',
-  maxZoom: 22
-}).addTo(map);
+  <section class="section" id="workflow">
+    <h2 class="section-title">Execution & Processing Pipeline</h2>
+    <p class="section-desc">Operating strictly according to Directorate General of Civil Aviation (DGCA) flight guidelines and IBM SOP guidelines under Rule 34A[cite: 1].</p>
+    <div class="card-grid">
+      <div class="step-card">
+        <div class="step-num">01 — CAPTURE</div>
+        <h3>Nadir Aerial Acquisition</h3>
+        <p>Conducted with calibrated &ge;20 MP RGB sensors at vertical nadir (90&deg;) angles, maintaining &ge;80% forward and &ge;70% lateral overlap during midday overhead sun conditions[cite: 1].</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">02 — GEOREFERENCE</div>
+        <h3>DGPS Ground Control</h3>
+        <p>Establishment of &ge;5 high-contrast GCPs per sq. km with dual-frequency DGPS instruments, tied to permanent undisturbed benchmarks ensuring RMSE &lt; 5 cm[cite: 1].</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">03 — ANALYZE & SUBMIT</div>
+        <h3>Photogrammetric Outputs</h3>
+        <p>Generation of sub-5 cm orthomosaics, DSM/DTM elevation rasters, thematic polygon shapefiles, and IBM-compliant submission dossiers[cite: 1].</p>
+      </div>
+    </div>
+  </section>
 
-// 2. Drone Raster Pane (Z-index 400 - above base map, below vectors)
-map.createPane('droneRasterPane');
-const droneRasterPane = map.getPane('droneRasterPane');
-droneRasterPane.style.zIndex = 400;
+  <section class="section" id="compliance">
+    <h2 class="section-title">Turnkey IBM Rule 34A Deliverables</h2>
+    <p class="section-desc">All spatial data and technical logs formatted specifically for submission to the Controller General and Regional Controller of Mines[cite: 1]:</p>
+    <div class="card-grid">
+      <div class="card">
+        <h3>Orthomosaic & DEM Raster</h3>
+        <p>Full leasehold and 100m buffer orthomosaic and Digital Elevation Model (DSM & DTM) rasters[cite: 1].</p>
+        <span class="card-code">Format: .tiff (GeoTIFF, WGS 84 UTM)[cite: 1]</span>
+      </div>
+      <div class="card">
+        <h3>Mining Feature Shapefiles</h3>
+        <p>Thematic vector boundaries delineating active excavations, subgrade dumps, waste dumps, mineral storage, and afforestation[cite: 1].</p>
+        <span class="card-code">Format: .shp (WGS 84 UTM Projection)[cite: 1]</span>
+      </div>
+      <div class="card">
+        <h3>Authenticated Ground Control</h3>
+        <p>Field survey data for all temporary and permanent GCPs alongside state-authenticated boundary pillar coordinates[cite: 1].</p>
+        <span class="card-code">Format: .shp and MS-Excel[cite: 1]</span>
+      </div>
+      <div class="card">
+        <h3>Survey Log Sheets & Accuracy Reports</h3>
+        <p>Complete survey flight log sheets and Root Mean Square Error (RMSE) accuracy validation reports[cite: 1].</p>
+        <span class="card-code">Format: .doc / .txt[cite: 1]</span>
+      </div>
+    </div>
+  </section>
 
-const orthoLayer = L.tileLayer(TILE_PATHS.ortho, {
-  maxZoom: 22,
-  maxNativeZoom: 20,
-  tms: true,
-  bounds: SITE_BOUNDS,
-  pane: 'droneRasterPane'
-}).addTo(map);
+  <section class="section" id="contact">
+    <div class="contact-card">
+      <h2>Commission an IBM-Compliant Mine Survey</h2>
+      <p>Need annual Rule 34A survey submissions, mining plan modification documentation, or high-accuracy stockpile volumetrics? Contact us for professional drone survey execution[cite: 1].</p>
+      <div class="contact-links">
+        <a href="mailto:Rituraj.gogoi11@gmail.com">✉ Rituraj.gogoi11@gmail.com</a>
+        <a href="tel:+919365410250">✆ +91 93654 10250</a>
+        <a href="https://wa.me/919365410250" target="_blank">Chat on WhatsApp</a>
+      </div>
+    </div>
+  </section>
 
-const dsmLayer = L.tileLayer(TILE_PATHS.dsm, {
-  maxZoom: 22,
-  maxNativeZoom: 20,
-  tms: true,
-  opacity: 0.85,
-  bounds: SITE_BOUNDS,
-  pane: 'droneRasterPane'
-});
+  <footer>
+    <p>&copy; 2026 Mine Site Viewer. Drone Aerial Intelligence for Opencast Mining Operations.</p>
+  </footer>
 
-const dtmLayer = L.tileLayer(TILE_PATHS.dtm, {
-  maxZoom: 22,
-  maxNativeZoom: 20,
-  tms: true,
-  opacity: 0.85,
-  bounds: SITE_BOUNDS,
-  pane: 'droneRasterPane'
-});
+  <!-- Leaflet WebGIS Engine -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const SITE_CENTER = [25.192475, 91.619639];
+    const SITE_ZOOM = 17;
 
-// 3. Vector Pane (Z-index 650 - explicitly guaranteed on top of orthomosaic)
-map.createPane('vectorPane');
-map.getPane('vectorPane').style.zIndex = 650;
+    const SITE_BOUNDS = L.latLngBounds(
+      [25.1830, 91.6090],
+      [25.2020, 91.6300]
+    );
 
-// Custom Vector Overlay Layer
-const structuresLayer = L.geoJSON(null, {
-  pane: 'vectorPane',
-  
-  style: function(feature) {
-    const props = feature.properties || {};
-    const name = String(props.layer || props.Layer || props.name || props.Name || props.LAYER || "").toUpperCase();
+    const TILE_PATHS = {
+      ortho: "./Tiles.tif/{z}/{x}/{y}.png",
+      dsm:   "./Tiles_DSM.tif/{z}/{x}/{y}.png",
+      dtm:   "./Tiles_DTM.tif/{z}/{x}/{y}.png"
+    };
 
-    if (name.includes("LEASE_BOUNDARY") || name.includes("LEASE")) {
-      return { pane: 'vectorPane', color: "#ff0000", weight: 3, dashArray: "6, 6", fillOpacity: 0 };
-    }
-    if (name.includes("SAFETY_ZONE") || name.includes("7_5_M") || name.includes("SAFETY")) {
-      return { pane: 'vectorPane', color: "#00ff00", weight: 2.5, dashArray: "4, 4", fillOpacity: 0 };
-    }
-    if (name.includes("100M") || name.includes("BUFFER")) {
-      return { pane: 'vectorPane', color: "#ff3333", weight: 1.5, dashArray: "8, 6", fillOpacity: 0 };
-    }
-    if (name.includes("ROAD")) {
-      return { pane: 'vectorPane', color: "#33ccff", weight: 4, opacity: 0.95 };
-    }
-    if (name.includes("BLOCK - A") || name.includes("BLOCK_A") || name.includes("BLOCK A")) {
-      return { pane: 'vectorPane', color: "#8b7355", fillColor: "#a89078", weight: 1.5, fillOpacity: 0.5 };
-    }
-    if (name.includes("BLOCK - B") || name.includes("BLOCK_B") || name.includes("BLOCK B")) {
-      return { pane: 'vectorPane', color: "#c71585", fillColor: "#d87093", weight: 1.5, fillOpacity: 0.55 };
-    }
-    if (name.includes("INFRASTRUCTURE")) {
-      return { pane: 'vectorPane', color: "#2e8b57", fillColor: "#3cb371", weight: 1.5, fillOpacity: 0.7 };
-    }
-    if (name.includes("AFFORESTATION") || name.includes("RECLAIMED")) {
-      return { pane: 'vectorPane', color: "#228b22", fillColor: "#32cd32", weight: 1.5, fillOpacity: 0.45 };
-    }
+    const GEOJSON_PATHS = {
+      structures: "data/structures-structures.geojson"
+    };
 
-    return { pane: 'vectorPane', color: "#ffff00", weight: 2.5, fillOpacity: 0.3 };
-  },
+    const map = L.map('map', { 
+      zoomControl: true,
+      minZoom: 16,
+      maxZoom: 22,
+      maxBounds: SITE_BOUNDS,
+      maxBoundsViscosity: 1.0,
+      scrollWheelZoom: false // prevents accidental scroll hijack while reading the page
+    }).setView(SITE_CENTER, SITE_ZOOM);
 
-  pointToLayer: function(feature, latlng) {
-    return L.circleMarker(latlng, {
-      pane: 'vectorPane',
-      radius: 7,
-      fillColor: "#ffd700",
-      color: "#000000",
-      weight: 2,
-      fillOpacity: 1
+    // Re-enable scroll zoom once the user clicks inside the map
+    map.on('focus', () => { map.scrollWheelZoom.enable(); });
+
+    // 1. Base map pane
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 22
+    }).addTo(map);
+
+    // 2. Drone Raster Pane
+    map.createPane('droneRasterPane');
+    const droneRasterPane = map.getPane('droneRasterPane');
+    droneRasterPane.style.zIndex = 400;
+
+    const orthoLayer = L.tileLayer(TILE_PATHS.ortho, {
+      maxZoom: 22,
+      maxNativeZoom: 20,
+      tms: true,
+      bounds: SITE_BOUNDS,
+      pane: 'droneRasterPane'
+    }).addTo(map);
+
+    const dsmLayer = L.tileLayer(TILE_PATHS.dsm, {
+      maxZoom: 22,
+      maxNativeZoom: 20,
+      tms: true,
+      opacity: 0.85,
+      bounds: SITE_BOUNDS,
+      pane: 'droneRasterPane'
     });
-  },
 
-  onEachFeature: function(feature, layer) {
-    const props = feature.properties || {};
-    const title = props.layer || props.Layer || props.name || props.Name || "Site Feature";
-    
-    layer.bindTooltip(String(title), { permanent: false, direction: "top", className: "label-tag" });
-    
-    let popupContent = `<b>${title}</b>`;
-    const details = Object.entries(props)
-      .filter(([k]) => !['layer', 'Layer', 'LAYER'].includes(k))
-      .map(([k, v]) => `<div><small>${k}: ${v}</small></div>`)
-      .join('');
-    if (details) popupContent += `<hr style="margin:4px 0; border:0; border-top:1px solid #444;">${details}`;
-    
-    layer.bindPopup(popupContent);
-  }
-}).addTo(map);
+    const dtmLayer = L.tileLayer(TILE_PATHS.dtm, {
+      maxZoom: 22,
+      maxNativeZoom: 20,
+      tms: true,
+      opacity: 0.85,
+      bounds: SITE_BOUNDS,
+      pane: 'droneRasterPane'
+    });
 
-// Fetch the GeoJSON file
-fetch(GEOJSON_PATHS.structures)
-  .then(response => {
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} - File not found at ${GEOJSON_PATHS.structures}`);
+    // 3. Vector Pane
+    map.createPane('vectorPane');
+    map.getPane('vectorPane').style.zIndex = 650;
+
+    const structuresLayer = L.geoJSON(null, {
+      pane: 'vectorPane',
+      style: function(feature) {
+        const props = feature.properties || {};
+        const name = String(props.layer || props.Layer || props.name || props.Name || props.LAYER || "").toUpperCase();
+
+        if (name.includes("LEASE_BOUNDARY") || name.includes("LEASE")) {
+          return { pane: 'vectorPane', color: "#ff0000", weight: 3, dashArray: "6, 6", fillOpacity: 0 };
+        }
+        if (name.includes("SAFETY_ZONE") || name.includes("7_5_M") || name.includes("SAFETY")) {
+          return { pane: 'vectorPane', color: "#00ff00", weight: 2.5, dashArray: "4, 4", fillOpacity: 0 };
+        }
+        if (name.includes("100M") || name.includes("BUFFER")) {
+          return { pane: 'vectorPane', color: "#ff3333", weight: 1.5, dashArray: "8, 6", fillOpacity: 0 };
+        }
+        if (name.includes("ROAD")) {
+          return { pane: 'vectorPane', color: "#33ccff", weight: 4, opacity: 0.95 };
+        }
+        if (name.includes("BLOCK - A") || name.includes("BLOCK_A") || name.includes("BLOCK A")) {
+          return { pane: 'vectorPane', color: "#8b7355", fillColor: "#a89078", weight: 1.5, fillOpacity: 0.5 };
+        }
+        if (name.includes("BLOCK - B") || name.includes("BLOCK_B") || name.includes("BLOCK B")) {
+          return { pane: 'vectorPane', color: "#c71585", fillColor: "#d87093", weight: 1.5, fillOpacity: 0.55 };
+        }
+        if (name.includes("INFRASTRUCTURE")) {
+          return { pane: 'vectorPane', color: "#2e8b57", fillColor: "#3cb371", weight: 1.5, fillOpacity: 0.7 };
+        }
+        if (name.includes("AFFORESTATION") || name.includes("RECLAIMED")) {
+          return { pane: 'vectorPane', color: "#228b22", fillColor: "#32cd32", weight: 1.5, fillOpacity: 0.45 };
+        }
+
+        return { pane: 'vectorPane', color: "#ffff00", weight: 2.5, fillOpacity: 0.3 };
+      },
+
+      pointToLayer: function(feature, latlng) {
+        return L.circleMarker(latlng, {
+          pane: 'vectorPane',
+          radius: 7,
+          fillColor: "#ffd700",
+          color: "#000000",
+          weight: 2,
+          fillOpacity: 1
+        });
+      },
+
+      onEachFeature: function(feature, layer) {
+        const props = feature.properties || {};
+        const title = props.layer || props.Layer || props.name || props.Name || "Site Feature";
+        
+        layer.bindTooltip(String(title), { permanent: false, direction: "top", className: "label-tag" });
+        
+        let popupContent = `<b>${title}</b>`;
+        const details = Object.entries(props)
+          .filter(([k]) => !['layer', 'Layer', 'LAYER'].includes(k))
+          .map(([k, v]) => `<div><small>${k}: ${v}</small></div>`)
+          .join('');
+        if (details) popupContent += `<hr style="margin:4px 0; border:0; border-top:1px solid #444;">${details}`;
+        
+        layer.bindPopup(popupContent);
+      }
+    }).addTo(map);
+
+    fetch(GEOJSON_PATHS.structures)
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then(geojsonData => {
+        structuresLayer.addData(geojsonData);
+      })
+      .catch(err => {
+        console.error("Vector layer load notice:", err);
+      });
+
+    const baseLayers = {
+      "OpenStreetMap": osm
+    };
+
+    const overlays = {
+      "Orthomosaic": orthoLayer,
+      "DSM (surface model)": dsmLayer,
+      "DTM (terrain model)": dtmLayer,
+      "Structures & Boundaries": structuresLayer
+    };
+
+    L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
+    L.control.scale({ imperial: false }).addTo(map);
+
+    const opacityPanel = document.getElementById('opacityPanel');
+    const opacityLabel = document.getElementById('opacityLabel');
+    const opacitySlider = document.getElementById('opacitySlider');
+
+    let activeRasterLayer = orthoLayer;
+
+    function updateRasterDisplay() {
+      if (map.hasLayer(orthoLayer)) {
+        activeRasterLayer = orthoLayer;
+        opacityPanel.style.display = 'block';
+        opacityLabel.textContent = 'Orthomosaic opacity';
+        droneRasterPane.style.mixBlendMode = 'normal';
+      } else if (map.hasLayer(dsmLayer)) {
+        activeRasterLayer = dsmLayer;
+        opacityPanel.style.display = 'block';
+        opacityLabel.textContent = 'DSM opacity';
+        droneRasterPane.style.mixBlendMode = 'screen';
+      } else if (map.hasLayer(dtmLayer)) {
+        activeRasterLayer = dtmLayer;
+        opacityPanel.style.display = 'block';
+        opacityLabel.textContent = 'DTM opacity';
+        droneRasterPane.style.mixBlendMode = 'screen';
+      } else {
+        opacityPanel.style.display = 'none';
+        droneRasterPane.style.mixBlendMode = 'normal';
+        return;
+      }
+      opacitySlider.value = activeRasterLayer.options.opacity ?? 1;
     }
-    return response.json();
-  })
-  .then(geojsonData => {
-    structuresLayer.addData(geojsonData);
-    console.log("Vector structures loaded successfully.");
-  })
-  .catch(err => {
-    console.error("Failed to load vector layer:", err);
-  });
 
-// Layer Switcher Controls
-const baseLayers = {
-  "OpenStreetMap": osm
-};
+    opacitySlider.oninput = () => {
+      if (activeRasterLayer) {
+        activeRasterLayer.setOpacity(parseFloat(opacitySlider.value));
+      }
+    };
 
-const overlays = {
-  "Orthomosaic": orthoLayer,
-  "DSM (surface model)": dsmLayer,
-  "DTM (terrain model)": dtmLayer,
-  "Structures & Boundaries": structuresLayer
-};
-
-L.control.layers(baseLayers, overlays, { collapsed: false }).addTo(map);
-L.control.scale({ imperial: false }).addTo(map);
-
-// Opacity & Blend Mode Controls
-const opacityPanel = document.getElementById('opacityPanel');
-const opacityLabel = document.getElementById('opacityLabel');
-const opacitySlider = document.getElementById('opacitySlider');
-
-let activeRasterLayer = orthoLayer;
-
-function updateRasterDisplay() {
-  if (map.hasLayer(orthoLayer)) {
-    activeRasterLayer = orthoLayer;
-    opacityPanel.style.display = 'block';
-    opacityLabel.textContent = 'Orthomosaic opacity';
-    droneRasterPane.style.mixBlendMode = 'normal';
-  } else if (map.hasLayer(dsmLayer)) {
-    activeRasterLayer = dsmLayer;
-    opacityPanel.style.display = 'block';
-    opacityLabel.textContent = 'DSM opacity';
-    // Drops pure black collar pixels (0,0,0) out as transparent
-    droneRasterPane.style.mixBlendMode = 'screen';
-  } else if (map.hasLayer(dtmLayer)) {
-    activeRasterLayer = dtmLayer;
-    opacityPanel.style.display = 'block';
-    opacityLabel.textContent = 'DTM opacity';
-    // Drops pure black collar pixels (0,0,0) out as transparent
-    droneRasterPane.style.mixBlendMode = 'screen';
-  } else {
-    opacityPanel.style.display = 'none';
-    droneRasterPane.style.mixBlendMode = 'normal';
-    return;
-  }
-  opacitySlider.value = activeRasterLayer.options.opacity ?? 1;
-}
-
-opacitySlider.oninput = () => {
-  if (activeRasterLayer) {
-    activeRasterLayer.setOpacity(parseFloat(opacitySlider.value));
-  }
-};
-
-map.on('overlayadd', updateRasterDisplay);
-map.on('overlayremove', updateRasterDisplay);
-updateRasterDisplay();
-</script>
+    map.on('overlayadd', updateRasterDisplay);
+    map.on('overlayremove', updateRasterDisplay);
+    updateRasterDisplay();
+  </script>
 </body>
 </html>
