@@ -33,7 +33,7 @@
     .nav-links { display: flex; align-items: center; gap: 1.5rem; }
     .nav-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
     .nav-links a:hover { color: #fff; }
-    .btn-cta { background: var(--accent); color: #000; padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; text-decoration: none; font-size: 0.85rem; transition: opacity 0.2s; }
+    .btn-cta { background: var(--accent); color: #000; padding: 0.55rem 1.1rem; border-radius: 6px; font-weight: 600; text-decoration: none; font-size: 0.85rem; transition: opacity 0.2s; border: none; cursor: pointer; }
     .btn-cta:hover { opacity: 0.9; }
 
     /* Hero Section */
@@ -78,6 +78,20 @@
       background: #11151a;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
+    
+    /* Fullscreen state styles */
+    .viewer-frame:fullscreen {
+      border-radius: 0;
+      border: none;
+      width: 100vw;
+      height: 100vh;
+    }
+    .viewer-frame:-webkit-full-screen {
+      width: 100vw;
+      height: 100vh;
+      border-radius: 0;
+    }
+
     #map { position: absolute; inset: 0; z-index: 1; }
 
     .app-title {
@@ -87,6 +101,15 @@
       letter-spacing: 0.02em; backdrop-filter: blur(6px);
     }
     .app-title span { color: var(--text-muted); font-weight: 400; font-size: 11px; display: block; }
+
+    .fullscreen-btn {
+      position: absolute; top: 14px; right: 14px; z-index: 500;
+      background: var(--panel-bg); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px; backdrop-filter: blur(6px);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4); transition: all 0.2s ease;
+    }
+    .fullscreen-btn:hover { background: #21262d; border-color: var(--accent); color: var(--accent); }
 
     .opacity-panel {
       position: absolute; bottom: 20px; left: 14px; z-index: 500;
@@ -152,9 +175,9 @@
   </header>
 
   <section class="hero">
-    <div class="badge">IBM Rule 34A MCDR (2017) Compliant · WebGIS Mining Intelligence</div>
-    <h1>Every pit, dump, and bench mapped to sub-5 cm precision.</h1>
-    <p>Mine Site Viewer transforms DGCA-compliant aerial survey data into high-resolution orthomosaics, 3D elevation models (DEM/DSM/DTM), and volumetric analytics—engineered for opencast mining operations and Indian Bureau of Mines (IBM) submission standards.</p>
+    <div class="badge">IBM Rule 34A MCDR (2017) Compliant · WebGIS Mining Intelligence[cite: 1]</div>
+    <h1>Every pit, dump, and bench mapped to sub-5 cm precision[cite: 1].</h1>
+    <p>Mine Site Viewer transforms DGCA-compliant aerial survey data into high-resolution orthomosaics, 3D elevation models (DEM/DSM/DTM), and volumetric analytics—engineered for opencast mining operations and Indian Bureau of Mines (IBM) submission standards[cite: 1].</p>
     <div class="hero-actions">
       <a href="#viewer" class="btn-cta" style="padding: 0.7rem 1.5rem;">Explore Live Mine Deck</a>
       <a href="#contact" class="btn-secondary">Commission a Mine Survey</a>
@@ -182,15 +205,21 @@
 
   <section class="section" id="viewer">
     <h2 class="section-title">Live Spatial Deck</h2>
-    <p class="section-desc">Interactive WebGIS viewer displaying actual drone orthomosaics, digital surface models, and structural cadastral boundaries.</p>
+    <p class="section-desc">Interactive WebGIS viewer displaying actual drone orthomosaics, digital surface models, and structural cadastral boundaries[cite: 1].</p>
 
-    <div class="viewer-frame">
+    <div class="viewer-frame" id="viewerContainer">
       <div id="map"></div>
 
       <div class="app-title">
         Mines Site Map Viewer
-        <span>Orthomosaic · DSM · DTM · Structures</span>
+        <span>Orthomosaic · DSM · DTM · Structures[cite: 1]</span>
       </div>
+
+      <!-- Fullscreen Toggle Button -->
+      <button class="fullscreen-btn" id="fullscreenToggle" title="Toggle Fullscreen View">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        <span id="fsBtnText">Fullscreen View</span>
+      </button>
 
       <div class="opacity-panel" id="opacityPanel">
         <label id="opacityLabel">Orthomosaic opacity</label>
@@ -198,8 +227,8 @@
       </div>
 
       <div class="legend">
-        <div><span class="swatch point" style="background:#ffd700;"></span> Boundary Pillar</div>
-        <div><span class="swatch line" style="background:#ff0000; border-top: 2px dashed #ff0000;"></span> Lease Boundary</div>
+        <div><span class="swatch point" style="background:#ffd700;"></span> Boundary Pillar[cite: 1]</div>
+        <div><span class="swatch line" style="background:#ff0000; border-top: 2px dashed #ff0000;"></span> Lease Boundary[cite: 1]</div>
         <div><span class="swatch line" style="background:#00ff00; border-top: 2px dashed #00ff00;"></span> Safety Zone (7.5m)</div>
         <div><span class="swatch line" style="background:#33ccff;"></span> Road</div>
         <div><span class="swatch" style="background:#a89078;"></span> Block A</div>
@@ -211,54 +240,54 @@
 
   <section class="section" id="advantages">
     <h2 class="section-title">Advantages of Drone Survey in Mining</h2>
-    <p class="section-desc">High-precision aerial photogrammetry delivers rapid site capture, centimeter-level volumetric accuracy, and eliminates hazardous manual ground surveys.</p>
+    <p class="section-desc">High-precision aerial photogrammetry delivers rapid site capture, centimeter-level volumetric accuracy, and eliminates hazardous manual ground surveys[cite: 1].</p>
     <div class="card-grid">
       <div class="card">
         <div>
           <h3>Fast, Comprehensive Coverage</h3>
-          <p>Survey entire mining leases and quarries rapidly, providing comprehensive, authentic data on operational site conditions without interrupting active pit traffic.</p>
+          <p>Survey entire mining leases and quarries rapidly, providing comprehensive, authentic data on operational site conditions without interrupting active pit traffic[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Centimeter-Level Volumetrics</h3>
-          <p>Produces dense 3D point clouds and Digital Surface Models (DSM) for accurate cut-and-fill volumetrics and excavation monitoring.</p>
+          <p>Produces dense 3D point clouds and Digital Surface Models (DSM) for accurate cut-and-fill volumetrics and excavation monitoring[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Irregular Stockpile Modeling</h3>
-          <p>Stockpiles exhibiting complex geometries, steep angles, or irregular craters are surveyed with exact precision compared to traditional methods.</p>
+          <p>Stockpiles exhibiting complex geometries, steep angles, or irregular craters are surveyed with exact precision compared to traditional methods[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Zero Ground Personnel Hazard</h3>
-          <p>Executes entirely from the air, removing field surveyors from dangerous pit benches, highwalls, active dump slopes, and heavy equipment routes.</p>
+          <p>Executes entirely from the air, removing field surveyors from dangerous pit benches, highwalls, active dump slopes, and heavy equipment routes[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Automated Multi-Epoch Tracking</h3>
-          <p>Historical survey datasets overlay seamlessly to automatically track and highlight excavation advancement, dump growth, and backfilling over time.</p>
+          <p>Historical survey datasets overlay seamlessly to automatically track and highlight excavation advancement, dump growth, and backfilling over time[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Perimeter & Buffer Oversight</h3>
-          <p>Enables systematic lease boundary demarcation and captures the mandatory 100-meter buffer zone outside the boundary to identify unauthorized excavation.</p>
+          <p>Enables systematic lease boundary demarcation and captures the mandatory 100-meter buffer zone outside the boundary to identify unauthorized excavation[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Systematic Mine Closure Planning</h3>
-          <p>Creates a multi-year digital spatial archive to monitor environmental rehabilitation, greenbelt afforestation, and scientific mine closure planning.</p>
+          <p>Creates a multi-year digital spatial archive to monitor environmental rehabilitation, greenbelt afforestation, and scientific mine closure planning[cite: 1].</p>
         </div>
       </div>
       <div class="card">
         <div>
           <h3>Digital Audit Database</h3>
-          <p>Establishes an easily retrievable digital repository of raw and processed spatial data preserved for mandatory statutory verification periods.</p>
+          <p>Establishes an easily retrievable digital repository of raw and processed spatial data preserved for mandatory statutory verification periods[cite: 1].</p>
         </div>
       </div>
     </div>
@@ -266,49 +295,49 @@
 
   <section class="section" id="workflow">
     <h2 class="section-title">Execution & Processing Pipeline</h2>
-    <p class="section-desc">Operating strictly according to Directorate General of Civil Aviation (DGCA) flight guidelines and IBM SOP guidelines under Rule 34A.</p>
+    <p class="section-desc">Operating strictly according to Directorate General of Civil Aviation (DGCA) flight guidelines and IBM SOP guidelines under Rule 34A[cite: 1].</p>
     <div class="card-grid">
       <div class="step-card">
         <div class="step-num">01 — CAPTURE</div>
         <h3>Nadir Aerial Acquisition</h3>
-        <p>Conducted with calibrated &ge;20 MP RGB sensors at vertical nadir (90&deg;) angles, maintaining &ge;80% forward and &ge;70% lateral overlap during midday overhead sun conditions.</p>
+        <p>Conducted with calibrated &ge;20 MP RGB sensors at vertical nadir (90&deg;) angles, maintaining &ge;80% forward and &ge;70% lateral overlap during midday overhead sun conditions[cite: 1].</p>
       </div>
       <div class="step-card">
         <div class="step-num">02 — GEOREFERENCE</div>
         <h3>DGPS Ground Control</h3>
-        <p>Establishment of &ge;5 high-contrast GCPs per sq. km with dual-frequency DGPS instruments, tied to permanent undisturbed benchmarks ensuring RMSE &lt; 5 cm.</p>
+        <p>Establishment of &ge;5 high-contrast GCPs per sq. km with dual-frequency DGPS instruments, tied to permanent undisturbed benchmarks ensuring RMSE &lt; 5 cm[cite: 1].</p>
       </div>
       <div class="step-card">
         <div class="step-num">03 — ANALYZE & SUBMIT</div>
         <h3>Photogrammetric Outputs</h3>
-        <p>Generation of sub-5 cm orthomosaics, DSM/DTM elevation rasters, thematic polygon shapefiles, and IBM-compliant submission dossiers.</p>
+        <p>Generation of sub-5 cm orthomosaics, DSM/DTM elevation rasters, thematic polygon shapefiles, and IBM-compliant submission dossiers[cite: 1].</p>
       </div>
     </div>
   </section>
 
   <section class="section" id="compliance">
     <h2 class="section-title">Turnkey IBM Rule 34A Deliverables</h2>
-    <p class="section-desc">All spatial data and technical logs formatted specifically for submission to the Controller General and Regional Controller of Mines:</p>
+    <p class="section-desc">All spatial data and technical logs formatted specifically for submission to the Controller General and Regional Controller of Mines[cite: 1]:</p>
     <div class="card-grid">
       <div class="card">
         <h3>Orthomosaic & DEM Raster</h3>
-        <p>Full leasehold and 100m buffer orthomosaic and Digital Elevation Model (DSM & DTM) rasters.</p>
-        <span class="card-code">Format: .tiff (GeoTIFF, WGS 84 UTM)</span>
+        <p>Full leasehold and 100m buffer orthomosaic and Digital Elevation Model (DSM & DTM) rasters[cite: 1].</p>
+        <span class="card-code">Format: .tiff (GeoTIFF, WGS 84 UTM)[cite: 1]</span>
       </div>
       <div class="card">
         <h3>Mining Feature Shapefiles</h3>
-        <p>Thematic vector boundaries delineating active excavations, subgrade dumps, waste dumps, mineral storage, and afforestation.</p>
-        <span class="card-code">Format: .shp (WGS 84 UTM Projection)</span>
+        <p>Thematic vector boundaries delineating active excavations, subgrade dumps, waste dumps, mineral storage, and afforestation[cite: 1].</p>
+        <span class="card-code">Format: .shp (WGS 84 UTM Projection)[cite: 1]</span>
       </div>
       <div class="card">
         <h3>Authenticated Ground Control</h3>
-        <p>Field survey data for all temporary and permanent GCPs alongside state-authenticated boundary pillar coordinates.</p>
-        <span class="card-code">Format: .shp and MS-Excel</span>
+        <p>Field survey data for all temporary and permanent GCPs alongside state-authenticated boundary pillar coordinates[cite: 1].</p>
+        <span class="card-code">Format: .shp and MS-Excel[cite: 1]</span>
       </div>
       <div class="card">
         <h3>Survey Log Sheets & Accuracy Reports</h3>
-        <p>Complete survey flight log sheets and Root Mean Square Error (RMSE) accuracy validation reports.</p>
-        <span class="card-code">Format: .doc / .txt</span>
+        <p>Complete survey flight log sheets and Root Mean Square Error (RMSE) accuracy validation reports[cite: 1].</p>
+        <span class="card-code">Format: .doc / .txt[cite: 1]</span>
       </div>
     </div>
   </section>
@@ -316,7 +345,7 @@
   <section class="section" id="contact">
     <div class="contact-card">
       <h2>Commission an IBM-Compliant Mine Survey</h2>
-      <p>Need annual Rule 34A survey submissions, mining plan modification documentation, or high-accuracy stockpile volumetrics? Contact us for professional drone survey execution.</p>
+      <p>Need annual Rule 34A survey submissions, mining plan modification documentation, or high-accuracy stockpile volumetrics? Contact us for professional drone survey execution[cite: 1].</p>
       <div class="contact-links">
         <a href="mailto:Rituraj.gogoi11@gmail.com">✉ Rituraj.gogoi11@gmail.com</a>
         <a href="tel:+919365410250">✆ +91 93654 10250</a>
@@ -526,6 +555,46 @@
     map.on('overlayadd', updateRasterDisplay);
     map.on('overlayremove', updateRasterDisplay);
     updateRasterDisplay();
+
+    /* Fullscreen Toggle Logic */
+    const viewerContainer = document.getElementById('viewerContainer');
+    const fullscreenToggle = document.getElementById('fullscreenToggle');
+    const fsBtnText = document.getElementById('fsBtnText');
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        if (viewerContainer.requestFullscreen) {
+          viewerContainer.requestFullscreen();
+        } else if (viewerContainer.webkitRequestFullscreen) {
+          viewerContainer.webkitRequestFullscreen();
+        } else if (viewerContainer.msRequestFullscreen) {
+          viewerContainer.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+          document.msExitFullscreen();
+        }
+      }
+    }
+
+    fullscreenToggle.addEventListener('click', toggleFullscreen);
+
+    function onFullscreenChange() {
+      const isFs = !!document.fullscreenElement;
+      fsBtnText.textContent = isFs ? 'Exit Fullscreen' : 'Fullscreen View';
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('mozfullscreenchange', onFullscreenChange);
+    document.addEventListener('MSFullscreenChange', onFullscreenChange);
   </script>
 </body>
 </html>
